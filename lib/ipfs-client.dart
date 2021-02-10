@@ -1,6 +1,7 @@
 library ipfs_http_client_dart;
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:ipfs_http_client_dart/files/files-api.dart';
 import 'package:archive/archive.dart';
@@ -40,8 +41,8 @@ class IpfsClient {
   }
 
   Stream<UnixFSEntry> get(String path) async* {
-    var data = await httpGet(CID.isCID(path) ? 'get/$path' : path);
-    var archive = new TarDecoder().decodeBytes(utf8.encode(data));
+    var data = await httpGetBytes(CID.isCID(path) ? 'get/$path' : path);
+    var archive = new TarDecoder().decodeBytes(data);
     for (var file in archive) {
       var res = UnixFSEntry();
       res.path = file.name;
@@ -54,23 +55,36 @@ class IpfsClient {
   }
 
   Future<dynamic> httpGet(String url) {
-    url = _getUrl(url);
-
-    var headers = _headers;
-
-    return http.get(url, headers: headers).then((http.Response response) {
-      final String res = response.body;
-      final int statusCode = response.statusCode;
-
-      if (statusCode < 200 || statusCode > 400) {
-        throw new Exception(
-            "$statusCode: Error while fetching data; ${response.body}");
-      }
+    return _httpGet(url).then((http.Response response) {
+      String res = response.body;
       if (res == null || res.isEmpty) return null;
       if (res.startsWith("{") || res.startsWith("["))
         return _decoder.convert(res);
       else
         return res;
+    });
+  }
+
+  Future<Uint8List> httpGetBytes(String url) {
+    return _httpGet(url).then((http.Response response) {
+      return response.bodyBytes;
+    });
+  }
+
+  Future<http.Response> _httpGet(String url) {
+    url = _getUrl(url);
+
+    var headers = _headers;
+
+    return http.get(url, headers: headers).then((http.Response response) {
+      final int statusCode = response.statusCode;
+
+      if (statusCode < 200 || statusCode > 400) {
+        throw new Exception(
+            "$statusCode: Error while fetching data; ${response.reasonPhrase}");
+      }
+
+      return response;
     });
   }
 
@@ -88,7 +102,7 @@ class IpfsClient {
 
       if (statusCode < 200 || statusCode > 400) {
         throw new Exception(
-            "$statusCode: Error while fetching data; ${response.body}");
+            "$statusCode: Error while fetching data; ${response.reasonPhrase}");
       }
 
       if (res == null || res.isEmpty) return null;
@@ -112,6 +126,12 @@ class IpfsClient {
       if (element.content is String)
         request.files.add(
             http.MultipartFile.fromString('file', element.content as String));
+      else if (element.content is Uint8List) {
+        request.files.add(http.MultipartFile.fromBytes(
+            'file', element.content as Uint8List,
+            filename: element.name, contentType: element.contentType));
+      } else
+        throw new Exception('File content is not supported');
     });
 
     return request.send().then((http.StreamedResponse response) async {

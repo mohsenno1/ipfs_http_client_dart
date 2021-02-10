@@ -1,4 +1,5 @@
-import 'dart:convert';
+import 'package:http_parser/http_parser.dart';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,14 +24,16 @@ void main() {
 
   test('Add a file to root and read it back', () async {
     var file = new UnixFSEntry();
-    file.content = "ABC";
+    file.content = await File('test/cat.png').readAsBytes();
+    file.name = "cat.png";
+    file.contentType = MediaType.parse('image/png');
     var res = await ipfs.add(file);
     expect(res, isNotNull);
     expect(res.cid, isNotNull);
 
     var fileGetter = ipfs.get(res.cid);
     var gFile = await fileGetter.first;
-    var getFileContent = utf8.decode(gFile.content);
-    expect(getFileContent, file.content);
+
+    expect(gFile.content, file.content);
   });
 }

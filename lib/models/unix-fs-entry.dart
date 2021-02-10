@@ -1,3 +1,5 @@
+import 'package:http_parser/http_parser.dart';
+
 class UnixFSEntry {
   String name;
   String path;
@@ -8,6 +10,7 @@ class UnixFSEntry {
   dynamic content;
   int mode;
   int mtime;
+  MediaType contentType;
 
   static UnixFSEntry fromJson(x) {
     if (x == null) return null;
@@ -24,6 +27,8 @@ class UnixFSEntry {
     res.content = x['Content'];
     res.mode = x['Mode'];
     res.mtime = x['Mtime'];
+    if (x['ContentType'] != null && x['ContentType'] is String)
+      res.contentType = MediaType.parse(x['ContentType']);
 
     return res;
   }
