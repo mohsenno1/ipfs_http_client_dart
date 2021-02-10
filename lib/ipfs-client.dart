@@ -1,10 +1,8 @@
 library ipfs_http_client_dart;
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:ipfs_http_client_dart/files/files-api.dart';
-import 'package:ipfs_http_client_dart/models/file-object.dart';
 import 'package:archive/archive.dart';
 
 import 'models/cid.dart';
@@ -26,20 +24,33 @@ class IpfsClient {
     return _files;
   }
 
+  Future<String> version() async {
+    var res = await httpPost('version');
+    return res['Version'];
+  }
+
   Future<String> id() async {
     var res = await httpPost('id');
     return res['ID'];
   }
 
-  Future<UnixFSEntry> add(FileObject file) async {
+  Future<UnixFSEntry> add(UnixFSEntry file) async {
     var data = await httpPostMultiPart('add', [file]);
     return UnixFSEntry.fromJson(data);
   }
 
-  Future<Uint8List> get(String path) async {
-    var data = await httpPost(CID.isCID(path) ? 'get/$path' : path);
+  Stream<UnixFSEntry> get(String path) async* {
+    var data = await httpGet(CID.isCID(path) ? 'get/$path' : path);
     var archive = new TarDecoder().decodeBytes(utf8.encode(data));
-    return archive.first.content;
+    for (var file in archive) {
+      var res = UnixFSEntry();
+      res.path = file.name;
+      res.size = file.size;
+      res.content = file.content;
+      res.mode = file.mode;
+      res.mtime = file.lastModTime;
+      yield res;
+    }
   }
 
   Future<dynamic> httpGet(String url) {
@@ -88,7 +99,7 @@ class IpfsClient {
     });
   }
 
-  Future<dynamic> httpPostMultiPart(String url, List<FileObject> body) {
+  Future<dynamic> httpPostMultiPart(String url, List<UnixFSEntry> body) {
     url = _getUrl(url);
 
     var headers = _headers;
@@ -104,12 +115,14 @@ class IpfsClient {
     });
 
     return request.send().then((http.StreamedResponse response) async {
-      final String res = await response.stream.bytesToString();
       final int statusCode = response.statusCode;
 
       if (statusCode < 200 || statusCode > 400) {
-        throw new Exception("$statusCode: Error while fetching data; $res");
+        throw new Exception(
+            "$statusCode: Error while fetching data; ${response.reasonPhrase}");
       }
+
+      final String res = await response.stream.bytesToString();
 
       if (res == null || res.isEmpty) return null;
       if (res.startsWith("{") || res.startsWith("["))

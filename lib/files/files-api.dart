@@ -1,6 +1,5 @@
 import 'package:ipfs_http_client_dart/ipfs-client.dart';
 import 'package:ipfs_http_client_dart/models/cid.dart';
-import 'package:ipfs_http_client_dart/models/file-object.dart';
 import 'package:ipfs_http_client_dart/models/unix-fs-entry.dart';
 
 class FilesApi {

@@ -3,14 +3,15 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ipfs_http_client_dart/ipfs-client.dart';
-import 'package:ipfs_http_client_dart/models/file-object.dart';
+import 'package:ipfs_http_client_dart/models/unix-fs-entry.dart';
 
 final ipfs = IpfsClient('http://localhost:5001/api/v0');
+//final ipfs = IpfsClient('https://ipfs.infura.io:5001/api/v0');
 
 void main() {
-  test('Check the status of ipfs by checking its ID', () async {
-    var id = await ipfs.id();
-    expect(id, isNotNull);
+  test('Check the status of ipfs by checking its version', () async {
+    var v = await ipfs.version();
+    expect(v, isNotNull);
   });
 
   test('The result of ls function', () async {
@@ -21,14 +22,15 @@ void main() {
   });
 
   test('Add a file to root and read it back', () async {
-    var file = new FileObject();
+    var file = new UnixFSEntry();
     file.content = "ABC";
     var res = await ipfs.add(file);
     expect(res, isNotNull);
     expect(res.cid, isNotNull);
 
-    var getFile = await ipfs.get(res.cid);
-    var getFileContent = utf8.decode(getFile);
+    var fileGetter = ipfs.get(res.cid);
+    var gFile = await fileGetter.first;
+    var getFileContent = utf8.decode(gFile.content);
     expect(getFileContent, file.content);
   });
 }

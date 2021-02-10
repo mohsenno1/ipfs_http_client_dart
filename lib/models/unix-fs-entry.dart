@@ -5,6 +5,9 @@ class UnixFSEntry {
   int size;
   int type;
   String target;
+  dynamic content;
+  int mode;
+  int mtime;
 
   static UnixFSEntry fromJson(x) {
     if (x == null) return null;
@@ -18,6 +21,9 @@ class UnixFSEntry {
       res.size = int.parse(x['Size']);
     res.type = x['Type'];
     res.target = x['Target'];
+    res.content = x['Content'];
+    res.mode = x['Mode'];
+    res.mtime = x['Mtime'];
 
     return res;
   }
